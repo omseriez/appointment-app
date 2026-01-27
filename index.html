@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Appointment Booking</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Book an Appointment</h1>
+
+  <form id="appointmentForm">
+    <label>Full Name</label><br>
+    <input type="text" id="name" required><br><br>
+
+    <label>Phone Number</label><br>
+    <input type="tel" id="phone" required><br><br>
+
+    <label>Appointment Date</label><br>
+    <input type="date" id="date" required><br><br>
+
+    <label>Appointment Time</label><br>
+    <input type="time" id="time" required><br><br>
+
+    <button type="submit">Book Appointment</button>
+  </form>
+
+  <h2>Appointment Queue</h2>
+  <ul id="appointmentList"></ul>
+
+  <script>
+    const form = document.getElementById("appointmentForm");
+    const appointmentList = document.getElementById("appointmentList");
+
+    let appointments = JSON.parse(localStorage.getItem("appointments")) || [];
+    displayAppointments();
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const name = document.getElementById("name").value;
+      const phone = document.getElementById("phone").value;
+      const date = document.getElementById("date").value;
+      const time = document.getElementById("time").value;
+
+      const appointment = { name, phone, date, time };
+      appointments.push(appointment);
+
+      localStorage.setItem("appointments", JSON.stringify(appointments));
+      displayAppointments();
+      form.reset();
+    });
+    function sortAppointments() {
+      appointments.sort(function (a, b) {
+        const dateA = new Date(a.date + " " + a.time);
+        const dateB = new Date(b.date + " " + b.time);
+        return dateA - dateB;
+      });
+    }
+
+    function displayAppointments() {
+      sortAppointments();
+      appointmentList.innerHTML = "";
+
+      appointments.forEach(function (appt, index) {
+        const li = document.createElement("li");
+
+        li.innerHTML = `
+          <strong>${appt.name}</strong><br>
+          ${appt.phone}<br>
+          ${appt.date} at ${appt.time}<br><br>
+          <button onclick="deleteAppointment(${index})">Delete</button>
+        `;
+
+        appointmentList.appendChild(li);
+      });
+    }
+
+    function deleteAppointment(index) {
+      appointments.splice(index, 1);
+      localStorage.setItem("appointments", JSON.stringify(appointments));
+      displayAppointments();
+    }
+  </script>
+
+</body>
+</html>
