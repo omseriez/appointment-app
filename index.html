@@ -42,6 +42,15 @@
       const date = document.getElementById("date").value;
       const time = document.getElementById("time").value;
 
+      const isBooked = appointments.some(function (appt) {
+        return appt.date === date && appt.time === time;
+      });
+
+      if (isBooked) {
+        alert("This date and time is already booked. Please choose another time.");
+        return;
+      }
+
       const appointment = { name, phone, date, time };
       appointments.push(appointment);
 
