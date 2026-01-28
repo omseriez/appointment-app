@@ -42,9 +42,10 @@
 </head>
 <body>
 
-<h1>My First Appointment App</h1>
+<h1>Book an Appointment</h1>
 
 <input id="name" placeholder="Your name" />
+<input id="phone number" placeholder="phone number" />
 <input id="date" type="date" />
 <input id="time" type="time" />
 <button onclick="bookAppointment()">Book Appointment</button>
@@ -83,10 +84,11 @@
   // Book appointment (with double-booking prevention)
   window.bookAppointment = async function () {
     const name = document.getElementById("name").value.trim();
+    const phone number = document.getElementById("phone number").value.trim();
     const date = document.getElementById("date").value;
     const time = document.getElementById("time").value;
 
-    if (!name || !date || !time) {
+    if (!name || !phone number || !date || !time) {
       alert("Please fill all fields");
       return;
     }
@@ -107,6 +109,7 @@
     // Save appointment
     await addDoc(collection(db, "appointments"), {
       name,
+      phone number,
       date,
       time,
       createdAt: Date.now()
@@ -127,7 +130,7 @@
       const data = docSnap.data();
 
       const li = document.createElement("li");
-      li.textContent = `${data.date} ${data.time} - ${data.name}`;
+      li.textContent = `${data.date} ${data.time} - ${data.number} - ${data.name}`;
 
       const del = document.createElement("button");
       del.textContent = "Delete";
