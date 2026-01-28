@@ -3,150 +3,186 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Appointment & Queue App</title>
+  <title>Book an Appointment</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f4f6f8;
+      background: #f2f4f7;
       padding: 20px;
-      max-width: 600px;
+      max-width: 500px;
       margin: auto;
     }
-    h1 {
+
+    h1, h2 {
       text-align: center;
     }
+
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
     input, button {
       width: 100%;
-      padding: 10px;
-      margin-top: 10px;
+      padding: 12px;
+      margin-top: 5px;
+      font-size: 16px;
     }
+
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+
     ul {
       list-style: none;
       padding: 0;
     }
+
     li {
-      background: #fff;
-      margin-top: 10px;
+      background: white;
       padding: 10px;
+      margin-top: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    button.delete {
+
+    .delete {
       background: red;
       color: white;
       border: none;
+      padding: 6px 10px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-<h1>Book an Appointment</h1>
+  <!-- ✅ TITLE FIXED -->
+  <h1>Book an Appointment</h1>
 
-<input id="name" placeholder="Your name" />
-<input id="phone number" placeholder="phone number" />
-<input id="date" type="date" />
-<input id="time" type="time" />
-<button onclick="bookAppointment()">Book Appointment</button>
+  <!-- ✅ FULL FORM -->
+  <label>Full Name</label>
+  <input id="name" placeholder="Enter full name">
 
-<h2>Appointment Queue</h2>
-<ul id="appointments"></ul>
+  <label>Phone Number</label>
+  <input id="phone" placeholder="Enter phone number">
 
-<script type="module">
-  // Firebase imports
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    addDoc,
-    getDocs,
-    query,
-    where,
-    deleteDoc,
-    doc
-  } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+  <label>Appointment Date</label>
+  <input id="date" type="date">
 
-  // Your Firebase config
-  const firebaseConfig = {
-    apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
-    authDomain: "appointment-app-id.firebaseapp.com",
-    projectId: "appointment-app-id",
-    storageBucket: "appointment-app-id.firebasestorage.app",
-    messagingSenderId: "753346372273",
-    appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
-  };
+  <label>Appointment Time</label>
+  <input id="time" type="time">
 
-  // Init Firebase
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  <button onclick="bookAppointment()">Book Appointment</button>
 
-  // Book appointment (with double-booking prevention)
-  window.bookAppointment = async function () {
-    const name = document.getElementById("name").value.trim();
-    const phone number = document.getElementById("phone number").value.trim();
-    const date = document.getElementById("date").value;
-    const time = document.getElementById("time").value;
+  <h2>Appointment Queue</h2>
+  <ul id="appointments"></ul>
 
-    if (!name || !phone number || !date || !time) {
-      alert("Please fill all fields");
-      return;
+  <!-- 🔥 FIREBASE + LOGIC -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      query,
+      where,
+      deleteDoc,
+      doc
+    } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
+      authDomain: "appointment-app-id.firebaseapp.com",
+      projectId: "appointment-app-id",
+      storageBucket: "appointment-app-id.firebasestorage.app",
+      messagingSenderId: "753346372273",
+      appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // ✅ BOOK APPOINTMENT WITH DOUBLE-BOOKING BLOCK
+    window.bookAppointment = async function () {
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const date = document.getElementById("date").value;
+      const time = document.getElementById("time").value;
+
+      if (!name || !phone || !date || !time) {
+        alert("Please fill all fields");
+        return;
+      }
+
+      const q = query(
+        collection(db, "appointments"),
+        where("date", "==", date),
+        where("time", "==", time)
+      );
+
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        alert("This date and time is already booked!");
+        return;
+      }
+
+      await addDoc(collection(db, "appointments"), {
+        name,
+        phone,
+        date,
+        time,
+        createdAt: Date.now()
+      });
+
+      document.getElementById("name").value = "";
+      document.getElementById("phone").value = "";
+
+      loadAppointments();
+    };
+
+    // ✅ LOAD APPOINTMENTS
+    async function loadAppointments() {
+      const list = document.getElementById("appointments");
+      list.innerHTML = "";
+
+      const snapshot = await getDocs(collection(db, "appointments"));
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <div>
+            <strong>${data.name}</strong><br>
+            ${data.phone}<br>
+            ${data.date} at ${data.time}
+          </div>
+        `;
+
+        const del = document.createElement("button");
+        del.textContent = "Delete";
+        del.className = "delete";
+        del.onclick = async () => {
+          await deleteDoc(doc(db, "appointments", docSnap.id));
+          loadAppointments();
+        };
+
+        li.appendChild(del);
+        list.appendChild(li);
+      });
     }
 
-    // Check if slot already exists
-    const q = query(
-      collection(db, "appointments"),
-      where("date", "==", date),
-      where("time", "==", time)
-    );
-
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      alert("This time is already booked!");
-      return;
-    }
-
-    // Save appointment
-    await addDoc(collection(db, "appointments"), {
-      name,
-      phone number,
-      date,
-      time,
-      createdAt: Date.now()
-    });
-
-    document.getElementById("name").value = "";
     loadAppointments();
-  };
-
-  // Load appointments
-  async function loadAppointments() {
-    const list = document.getElementById("appointments");
-    list.innerHTML = "";
-
-    const snapshot = await getDocs(collection(db, "appointments"));
-
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-
-      const li = document.createElement("li");
-      li.textContent = `${data.date} ${data.time} - ${data.number} - ${data.name}`;
-
-      const del = document.createElement("button");
-      del.textContent = "Delete";
-      del.className = "delete";
-      del.onclick = async () => {
-        await deleteDoc(doc(db, "appointments", docSnap.id));
-        loadAppointments();
-      };
-
-      li.appendChild(del);
-      list.appendChild(li);
-    });
-  }
-
-  loadAppointments();
-</script>
+  </script>
 
 </body>
 </html>
