@@ -107,7 +107,8 @@
       messagingSenderId: "753346372273",
       appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
     };
-
+    
+    const BUSINESS_ID = "voixit-office";
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -125,6 +126,7 @@
 
       const q = query(
         collection(db, "appointments"),
+        where("businessId", "==", BUSINESS_ID),
         where("date", "==", date),
         where("time", "==", time)
       );
@@ -136,6 +138,7 @@
       }
 
       await addDoc(collection(db, "appointments"), {
+        businessId: BUSINESS_ID,
         name,
         phone,
         date,
@@ -154,7 +157,13 @@
       const list = document.getElementById("appointments");
       list.innerHTML = "";
 
-      const snapshot = await getDocs(collection(db, "appointments"));
+      const q = query(
+        collection(db, "appointments"),
+        where("businessId", "==", BUSINESS_ID)
+      );
+
+      const snapshot = await getDocs(q);
+
 
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
