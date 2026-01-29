@@ -82,8 +82,11 @@
 
   <button onclick="bookAppointment()">Book Appointment</button>
 
-  <h2>Appointment Queue</h2>
-  <ul id="appointments"></ul>
+  <button onclick="enterAdminMode()">Admin Login</button>
+
+  <h2 id="queueTitle" style="display:none;">Appointment Queue</h2>
+  <ul id="appointments" style="display:none;"></ul>
+
 
   <!-- 🔥 FIREBASE + LOGIC -->
   <script type="module">
@@ -107,10 +110,27 @@
       messagingSenderId: "753346372273",
       appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
     };
+
+    window.enterAdminMode = function () {
+      const code = prompt("Enter admin code:");
+
+      if (code === ADMIN_CODE) {
+        isAdmin = true;
+        document.getElementById("appointments").style.display = "block";
+        alert("Admin mode activated");
+        loadAppointments();
+      } else {
+        alert("Wrong admin code");
+      }
+    };
+
     
     const BUSINESS_ID = "voixit-office";
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const ADMIN_CODE = "Whywhy455";
+    let isAdmin = false;
+
 
     // ✅ BOOK APPOINTMENT WITH DOUBLE-BOOKING BLOCK
     window.bookAppointment = async function () {
@@ -149,6 +169,12 @@
       document.getElementById("name").value = "";
       document.getElementById("phone").value = "";
 
+      if (!isAdmin) return;
+
+      document.getElementById("appointments").style.display = "block";
+      document.getElementById("queueTitle").style.display = "block";
+
+
       loadAppointments();
     };
 
@@ -177,6 +203,7 @@
           </div>
         `;
 
+    if (isAdmin) {
         const del = document.createElement("button");
         del.textContent = "Delete";
         del.className = "delete";
@@ -186,8 +213,6 @@
         };
 
         li.appendChild(del);
-        list.appendChild(li);
-      });
     }
 
     loadAppointments();
