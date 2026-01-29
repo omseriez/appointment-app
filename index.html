@@ -1,60 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Book an Appointment</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Book an Appointment</title>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f2f4f7;
-      padding: 20px;
-      max-width: 500px;
-      margin: auto;
-    }
-    h1, h2 {
-      text-align: center;
-    }
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 5px;
-      font-size: 16px;
-    }
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      margin-top: 20px;
-      cursor: pointer;
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      background: white;
-      padding: 10px;
-      margin-top: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .delete {
-      background: red;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      cursor: pointer;
-    }
-  </style>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f2f4f7;
+    padding: 20px;
+    max-width: 500px;
+    margin: auto;
+  }
+  h1, h2 { text-align: center; }
+  label { display: block; margin-top: 15px; font-weight: bold; }
+  input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 5px;
+    font-size: 16px;
+  }
+  button {
+    background: #007bff;
+    color: white;
+    border: none;
+    margin-top: 20px;
+    cursor: pointer;
+  }
+  ul { list-style: none; padding: 0; }
+  li {
+    background: white;
+    padding: 10px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .delete {
+    background: red;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+</style>
 </head>
+
 <body>
 
 <h1>Book an Appointment</h1>
@@ -71,134 +63,146 @@
 <label>Appointment Time</label>
 <input id="time" type="time">
 
-<button onclick="bookAppointment()">Book Appointment</button>
-<button onclick="enterAdminMode()">Admin Login</button>
+<button id="bookBtn">Book Appointment</button>
+<button id="adminBtn">Admin Login</button>
 
 <h2 id="queueTitle" style="display:none;">Appointment Queue</h2>
 <ul id="appointments" style="display:none;"></ul>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    addDoc,
-    getDocs,
-    query,
-    where,
-    deleteDoc,
-    doc
-  } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  deleteDoc,
+  doc
+} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-  // 🔐 CONFIG
-  const BUSINESS_ID = "voixit-office";
-  const ADMIN_CODE = "Whywhy455";
-  let isAdmin = false;
+/* 🔐 CONFIG */
+const BUSINESS_ID = "voixit-office";
+const ADMIN_CODE = "Whywhy455";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
-    authDomain: "appointment-app-id.firebaseapp.com",
-    projectId: "appointment-app-id",
-    storageBucket: "appointment-app-id.firebasestorage.app",
-    messagingSenderId: "753346372273",
-    appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
-  };
+/* 🔥 FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
+  authDomain: "appointment-app-id.firebaseapp.com",
+  projectId: "appointment-app-id",
+  storageBucket: "appointment-app-id.firebasestorage.app",
+  messagingSenderId: "753346372273",
+  appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  // 🔐 ADMIN MODE
-  window.enterAdminMode = function () {
-    const code = prompt("Enter admin code:");
-    if (code === ADMIN_CODE) {
-      isAdmin = true;
-      document.getElementById("appointments").style.display = "block";
-      document.getElementById("queueTitle").style.display = "block";
-      loadAppointments();
-      alert("Admin mode activated");
-    } else {
-      alert("Wrong admin code");
-    }
-  };
+/* 🔐 ADMIN STATE (SESSION) */
+let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
-  // 📌 BOOK APPOINTMENT
-  window.bookAppointment = async function () {
-    const name = document.getElementById("name").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const date = document.getElementById("date").value;
-    const time = document.getElementById("time").value;
+const queueTitle = document.getElementById("queueTitle");
+const appointmentsList = document.getElementById("appointments");
 
-    if (!name || !phone || !date || !time) {
-      alert("Please fill all fields");
-      return;
-    }
+if (isAdmin) enableAdminUI();
 
-    const q = query(
-      collection(db, "appointments"),
-      where("businessId", "==", BUSINESS_ID),
-      where("date", "==", date),
-      where("time", "==", time)
-    );
-
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      alert("This date and time is already booked!");
-      return;
-    }
-
-    await addDoc(collection(db, "appointments"), {
-      businessId: BUSINESS_ID,
-      name,
-      phone,
-      date,
-      time,
-      createdAt: Date.now()
-    });
-
-    document.getElementById("name").value = "";
-    document.getElementById("phone").value = "";
-
-    alert("Appointment booked successfully!");
-  };
-
-  // 📋 LOAD APPOINTMENTS (ADMIN ONLY)
-  async function loadAppointments() {
-    if (!isAdmin) return;
-
-    const list = document.getElementById("appointments");
-    list.innerHTML = "";
-
-    const q = query(
-      collection(db, "appointments"),
-      where("businessId", "==", BUSINESS_ID)
-    );
-
-    const snapshot = await getDocs(q);
-
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-
-      const li = document.createElement("li");
-      li.innerHTML = `
-        <div>
-          <strong>${data.name}</strong><br>
-          ${data.phone}<br>
-          ${data.date} at ${data.time}
-        </div>
-      `;
-
-      const del = document.createElement("button");
-      del.textContent = "Delete";
-      del.className = "delete";
-      del.onclick = async () => {
-        await deleteDoc(doc(db, "appointments", docSnap.id));
-        loadAppointments();
-      };
-
-      li.appendChild(del);
-      list.appendChild(li);
-    });
+/* 🔑 ADMIN LOGIN */
+document.getElementById("adminBtn").onclick = () => {
+  const code = prompt("Enter admin code:");
+  if (code === ADMIN_CODE) {
+    sessionStorage.setItem("isAdmin", "true");
+    enableAdminUI();
+    alert("Admin access granted");
+  } else {
+    alert("Wrong admin code");
   }
+};
+
+/* 📌 ENABLE ADMIN UI */
+function enableAdminUI() {
+  queueTitle.style.display = "block";
+  appointmentsList.style.display = "block";
+  loadAppointments();
+}
+
+/* 📌 BOOK APPOINTMENT */
+document.getElementById("bookBtn").onclick = async () => {
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const date = document.getElementById("date").value;
+  const time = document.getElementById("time").value;
+
+  if (!name || !phone || !date || !time) {
+    alert("Please fill all fields");
+    return;
+  }
+
+  const q = query(
+    collection(db, "appointments"),
+    where("businessId", "==", BUSINESS_ID),
+    where("date", "==", date),
+    where("time", "==", time)
+  );
+
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    alert("This date and time is already booked");
+    return;
+  }
+
+  await addDoc(collection(db, "appointments"), {
+    businessId: BUSINESS_ID,
+    name,
+    phone,
+    date,
+    time,
+    createdAt: Date.now()
+  });
+
+  alert("Appointment booked successfully");
+  document.getElementById("name").value = "";
+  document.getElementById("phone").value = "";
+};
+
+/* 📋 LOAD APPOINTMENTS (ADMIN ONLY) */
+async function loadAppointments() {
+  if (!isAdmin) return;
+
+  appointmentsList.innerHTML = "";
+
+  const q = query(
+    collection(db, "appointments"),
+    where("businessId", "==", BUSINESS_ID)
+  );
+
+  const snap = await getDocs(q);
+
+  snap.forEach(d => {
+    const data = d.data();
+
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <div>
+        <strong>${data.name}</strong><br>
+        ${data.phone}<br>
+        ${data.date} at ${data.time}
+      </div>
+    `;
+
+    const del = document.createElement("button");
+    del.textContent = "Delete";
+    del.className = "delete";
+    del.onclick = async () => {
+      await deleteDoc(doc(db, "appointments", d.id));
+      loadAppointments();
+    };
+
+    li.appendChild(del);
+    appointmentsList.appendChild(li);
+  });
+}
 </script>
+
 </body>
 </html>
