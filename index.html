@@ -99,6 +99,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// 🕘 BUSINESS HOURS
+const OPEN_TIME = "09:00";
+const CLOSE_TIME = "17:00";
+const TIME_INTERVAL = 30; // minutes
+
+const timeInput = document.getElementById("time");
+
+// Apply business time rules
+timeInput.min = OPEN_TIME;
+timeInput.max = CLOSE_TIME;
+timeInput.step = TIME_INTERVAL * 60; // seconds
+
+
 /* 🔐 ADMIN STATE (SESSION) */
 let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
@@ -132,6 +145,14 @@ document.getElementById("bookBtn").onclick = async () => {
   const phone = document.getElementById("phone").value.trim();
   const date = document.getElementById("date").value;
   const time = document.getElementById("time").value;
+  if (time < OPEN_TIME || time > CLOSE_TIME) {
+    alert("Selected time is outside business hours");
+    return;
+  }
+  
+  const today = new Date().toISOString().split("T")[0];
+  document.getElementById("date").min = today;
+
 
   if (!name || !phone || !date || !time) {
     alert("Please fill all fields");
