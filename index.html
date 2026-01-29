@@ -1,74 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Book an Appointment</title>
-
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #f2f4f7;
-    padding: 20px;
-    max-width: 500px;
-    margin: auto;
-  }
-  h1, h2 { text-align: center; }
-  label { display: block; margin-top: 15px; font-weight: bold; }
-  input, button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 5px;
-    font-size: 16px;
-  }
-  button {
-    background: #007bff;
-    color: white;
-    border: none;
-    margin-top: 20px;
-    cursor: pointer;
-  }
-  ul { list-style: none; padding: 0; }
-  li {
-    background: white;
-    padding: 10px;
-    margin-top: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .delete {
-    background: red;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    cursor: pointer;
-  }
-</style>
-</head>
-
-<body>
-
-<h1>Book an Appointment</h1>
-
-<label>Full Name</label>
-<input id="name" placeholder="Enter full name">
-
-<label>Phone Number</label>
-<input id="phone" placeholder="Enter phone number">
-
-<label>Appointment Date</label>
-<input id="date" type="date">
-
-<label>Appointment Time</label>
-<input id="time" type="time">
-
-<button id="bookBtn">Book Appointment</button>
-<button id="adminBtn">Admin Login</button>
-
-<h2 id="queueTitle" style="display:none;">Appointment Queue</h2>
-<ul id="appointments" style="display:none;"></ul>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import {
@@ -86,6 +15,11 @@ import {
 const BUSINESS_ID = "voixit-office";
 const ADMIN_CODE = "Whywhy455";
 
+/* 🕘 BUSINESS HOURS */
+const OPEN_TIME = "09:00";
+const CLOSE_TIME = "17:00";
+const TIME_INTERVAL = 30;
+
 /* 🔥 FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
@@ -99,22 +33,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 🕘 BUSINESS HOURS
-const OPEN_TIME = "09:00";
-const CLOSE_TIME = "17:00";
-const TIME_INTERVAL = 30; // minutes
-
-const timeInput = document.getElementById("time");
-
-// Apply business time rules
-timeInput.min = OPEN_TIME;
-timeInput.max = CLOSE_TIME;
-timeInput.step = TIME_INTERVAL * 60; // seconds
-
-
-/* 🔐 ADMIN STATE (SESSION) */
+/* 🔐 ADMIN STATE */
 let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
+/* 📅 PREVENT PAST DATES */
+const today = new Date().toISOString().split("T")[0];
+document.getElementById("date").min = today;
+
+/* ⏰ TIME INPUT RULES */
+const timeInput = document.getElementById("time");
+timeInput.min = OPEN_TIME;
+timeInput.max = CLOSE_TIME;
+timeInput.step = TIME_INTERVAL * 60;
+
+/* 📋 ADMIN UI */
 const queueTitle = document.getElementById("queueTitle");
 const appointmentsList = document.getElementById("appointments");
 
@@ -125,6 +57,7 @@ document.getElementById("adminBtn").onclick = () => {
   const code = prompt("Enter admin code:");
   if (code === ADMIN_CODE) {
     sessionStorage.setItem("isAdmin", "true");
+    isAdmin = true;
     enableAdminUI();
     alert("Admin access granted");
   } else {
@@ -132,7 +65,7 @@ document.getElementById("adminBtn").onclick = () => {
   }
 };
 
-/* 📌 ENABLE ADMIN UI */
+/* 📌 ENABLE ADMIN VIEW */
 function enableAdminUI() {
   queueTitle.style.display = "block";
   appointmentsList.style.display = "block";
@@ -145,17 +78,14 @@ document.getElementById("bookBtn").onclick = async () => {
   const phone = document.getElementById("phone").value.trim();
   const date = document.getElementById("date").value;
   const time = document.getElementById("time").value;
-  if (time < OPEN_TIME || time > CLOSE_TIME) {
-    alert("Selected time is outside business hours");
-    return;
-  }
-  
-  const today = new Date().toISOString().split("T")[0];
-  document.getElementById("date").min = today;
-
 
   if (!name || !phone || !date || !time) {
     alert("Please fill all fields");
+    return;
+  }
+
+  if (time < OPEN_TIME || time >= CLOSE_TIME) {
+    alert("Selected time is outside business hours");
     return;
   }
 
@@ -186,7 +116,7 @@ document.getElementById("bookBtn").onclick = async () => {
   document.getElementById("phone").value = "";
 };
 
-/* 📋 LOAD APPOINTMENTS (ADMIN ONLY) */
+/* 📋 LOAD APPOINTMENTS */
 async function loadAppointments() {
   if (!isAdmin) return;
 
@@ -224,6 +154,3 @@ async function loadAppointments() {
   });
 }
 </script>
-
-</body>
-</html>
