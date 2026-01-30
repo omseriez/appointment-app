@@ -125,6 +125,7 @@ const db = getFirestore(app);
 let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
 /* 📅 PREVENT PAST BOOKINGS */
+const today = new Date().toISOString().split("T")[0];
 document.getElementById("date").min = today;
 
 /* ⏰ TIME RULES */
