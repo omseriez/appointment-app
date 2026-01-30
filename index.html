@@ -125,7 +125,12 @@ const db = getFirestore(app);
 let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
 /* 📅 PREVENT PAST BOOKINGS */
-const today = new Date().toISOString().split("T")[0];
+const now = new Date();
+const today =
+  now.getFullYear() + "-" +
+  String(now.getMonth() + 1).padStart(2, "0") + "-" +
+  String(now.getDate()).padStart(2, "0");
+  
 document.getElementById("date").min = today;
 
 /* ⏰ TIME RULES */
@@ -218,7 +223,10 @@ async function loadAppointments() {
 
   let total = 0;
   let todayTotal = 0;
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = now.getFullYear() + "-" +
+    String(now.getMonth() + 1).padStart(2, "0") + "-" +
+    String(now.getDate()).padStart(2, "0");
 
   snap.forEach(d => {
     total++;
