@@ -1,3 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Book an Appointment</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f2f4f7;
+    padding: 20px;
+    max-width: 500px;
+    margin: auto;
+  }
+  h1, h2 { text-align: center; }
+  label { display: block; margin-top: 15px; font-weight: bold; }
+  input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 5px;
+    font-size: 16px;
+  }
+  button {
+    background: #007bff;
+    color: white;
+    border: none;
+    margin-top: 20px;
+    cursor: pointer;
+  }
+  ul { list-style: none; padding: 0; }
+  li {
+    background: white;
+    padding: 10px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .delete {
+    background: red;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>Book an Appointment</h1>
+
+<label>Full Name</label>
+<input id="name" placeholder="Enter full name">
+
+<label>Phone Number</label>
+<input id="phone" placeholder="Enter phone number">
+
+<label>Appointment Date</label>
+<input id="date" type="date">
+
+<label>Appointment Time</label>
+<input id="time" type="time">
+
+<button id="bookBtn">Book Appointment</button>
+<button id="adminBtn">Admin Login</button>
+
+<!-- 🔐 ADMIN DASHBOARD -->
+<div id="dashboard" style="display:none;">
+  <h2>Admin Dashboard</h2>
+
+  <div style="display:flex; gap:10px; margin-bottom:15px;">
+    <div style="flex:1; background:white; padding:10px; text-align:center;">
+      <h3 id="totalCount">0</h3>
+      <small>Total Appointments</small>
+    </div>
+
+    <div style="flex:1; background:white; padding:10px; text-align:center;">
+      <h3 id="todayCount">0</h3>
+      <small>Today</small>
+    </div>
+  </div>
+
+  <h2>Appointment Queue</h2>
+  <ul id="appointments"></ul>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import {
@@ -36,18 +124,18 @@ const db = getFirestore(app);
 /* 🔐 ADMIN STATE */
 let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
-/* 📅 PREVENT PAST DATES */
+/* 📅 PREVENT PAST BOOKINGS */
 const today = new Date().toISOString().split("T")[0];
 document.getElementById("date").min = today;
 
-/* ⏰ TIME INPUT RULES */
+/* ⏰ TIME RULES */
 const timeInput = document.getElementById("time");
 timeInput.min = OPEN_TIME;
 timeInput.max = CLOSE_TIME;
 timeInput.step = TIME_INTERVAL * 60;
 
 /* 📋 ADMIN UI */
-const queueTitle = document.getElementById("queueTitle");
+const dashboard = document.getElementById("dashboard");
 const appointmentsList = document.getElementById("appointments");
 
 if (isAdmin) enableAdminUI();
@@ -65,10 +153,9 @@ document.getElementById("adminBtn").onclick = () => {
   }
 };
 
-/* 📌 ENABLE ADMIN VIEW */
+/* 📌 ENABLE ADMIN UI */
 function enableAdminUI() {
-  queueTitle.style.display = "block";
-  appointmentsList.style.display = "block";
+  dashboard.style.display = "block";
   loadAppointments();
 }
 
@@ -116,7 +203,7 @@ document.getElementById("bookBtn").onclick = async () => {
   document.getElementById("phone").value = "";
 };
 
-/* 📋 LOAD APPOINTMENTS */
+/* 📊 LOAD APPOINTMENTS + DASHBOARD */
 async function loadAppointments() {
   if (!isAdmin) return;
 
@@ -129,8 +216,13 @@ async function loadAppointments() {
 
   const snap = await getDocs(q);
 
+  let total = 0;
+  let todayTotal = 0;
+
   snap.forEach(d => {
+    total++;
     const data = d.data();
+    if (data.date === today) todayTotal++;
 
     const li = document.createElement("li");
     li.innerHTML = `
@@ -152,5 +244,11 @@ async function loadAppointments() {
     li.appendChild(del);
     appointmentsList.appendChild(li);
   });
+
+  document.getElementById("totalCount").textContent = total;
+  document.getElementById("todayCount").textContent = todayTotal;
 }
 </script>
+
+</body>
+</html>
