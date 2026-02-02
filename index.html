@@ -15,7 +15,7 @@
   }
   h1, h2 { text-align: center; }
   label { display: block; margin-top: 15px; font-weight: bold; }
-  input, button {
+  input, select, button {
     width: 100%;
     padding: 12px;
     margin-top: 5px;
@@ -53,6 +53,14 @@
 
 <label>Full Name</label>
 <input id="name" placeholder="Enter full name">
+
+<label>Country</label>
+<select id="country">
+  <option value="NG" data-code="+234" data-tz="Africa/Lagos">🇳🇬 Nigeria (+234)</option>
+  <option value="US" data-code="+1" data-tz="America/New_York">🇺🇸 USA (+1)</option>
+  <option value="GB" data-code="+44" data-tz="Europe/London">🇬🇧 UK (+44)</option>
+  <option value="CA" data-code="+1" data-tz="America/Toronto">🇨🇦 Canada (+1)</option>
+</select>
 
 <label>Phone Number</label>
 <input id="phone" placeholder="Enter phone number">
@@ -108,6 +116,9 @@ const OPEN_TIME = "09:00";
 const CLOSE_TIME = "17:00";
 const TIME_INTERVAL = 30;
 
+/* 🕒 BUSINESS TIMEZONE (ADMIN USES THIS) */
+const BUSINESS_TIMEZONE = "Africa/Lagos";
+
 /* 🔥 FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
@@ -124,14 +135,26 @@ const db = getFirestore(app);
 /* 🔐 ADMIN STATE */
 let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
-/* 📅 PREVENT PAST BOOKINGS */
-const now = new Date();
-const today =
-  now.getFullYear() + "-" +
-  String(now.getMonth() + 1).padStart(2, "0") + "-" +
-  String(now.getDate()).padStart(2, "0");
+/* 🌍 COUNTRY HANDLING */
+const countrySelect = document.getElementById("country");
+const phoneInput = document.getElementById("phone");
 
-document.getElementById("date").min = today;
+countrySelect.onchange = () => {
+  phoneInput.value = countrySelect.selectedOptions[0].dataset.code + " ";
+};
+
+/* 📅 COUNTRY-AWARE DATE */
+function getLocalDateForSelectedCountry() {
+  const tz = countrySelect.selectedOptions[0].dataset.tz;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
+document.getElementById("date").min = getLocalDateForSelectedCountry();
 
 /* ⏰ TIME RULES */
 const timeInput = document.getElementById("time");
@@ -167,9 +190,10 @@ function enableAdminUI() {
 /* 📌 BOOK APPOINTMENT */
 document.getElementById("bookBtn").onclick = async () => {
   const name = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
+  const phone = phoneInput.value.trim();
   const date = document.getElementById("date").value;
   const time = document.getElementById("time").value;
+  const timezone = countrySelect.selectedOptions[0].dataset.tz;
 
   if (!name || !phone || !date || !time) {
     alert("Please fill all fields");
@@ -200,12 +224,14 @@ document.getElementById("bookBtn").onclick = async () => {
     phone,
     date,
     time,
+    country: countrySelect.value,
+    timezone,
     createdAt: Date.now()
   });
 
   alert("Appointment booked successfully");
   document.getElementById("name").value = "";
-  document.getElementById("phone").value = "";
+  phoneInput.value = "";
 };
 
 /* 📊 LOAD APPOINTMENTS + DASHBOARD */
@@ -223,11 +249,13 @@ async function loadAppointments() {
 
   let total = 0;
   let todayTotal = 0;
-  
-  const now = new Date();
-  const today = now.getFullYear() + "-" +
-    String(now.getMonth() + 1).padStart(2, "0") + "-" +
-    String(now.getDate()).padStart(2, "0");
+
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
 
   snap.forEach(d => {
     total++;
