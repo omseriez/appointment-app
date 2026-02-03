@@ -11,219 +11,199 @@ import {
   doc
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-/* 🔐 CONFIG */
-const BUSINESS_ID = "voixit-office";
-const ADMIN_CODE = "Whywhy455";
+document.addEventListener("DOMContentLoaded", () => {
 
-/* 🕘 BUSINESS HOURS */
-const OPEN_TIME = "09:00";
-const CLOSE_TIME = "17:00";
-const TIME_INTERVAL = 30;
+  /* 🔐 CONFIG */
+  const BUSINESS_ID = "voixit-office";
+  const ADMIN_CODE = "Whywhy455";
 
-/* 🕒 BUSINESS TIMEZONE */
-const BUSINESS_TIMEZONE = "Africa/Lagos";
+  /* 🕘 BUSINESS HOURS */
+  const OPEN_TIME = "09:00";
+  const CLOSE_TIME = "17:00";
+  const TIME_INTERVAL = 30;
 
-/* 🔥 FIREBASE */
-const firebaseConfig = {
-  apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
-  authDomain: "appointment-app-id.firebaseapp.com",
-  projectId: "appointment-app-id",
-  storageBucket: "appointment-app-id.firebasestorage.app",
-  messagingSenderId: "753346372273",
-  appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
-};
+  /* 🕒 BUSINESS TIMEZONE */
+  const BUSINESS_TIMEZONE = "Africa/Lagos";
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+  /* 🔥 FIREBASE */
+  const firebaseConfig = {
+    apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
+    authDomain: "appointment-app-id.firebaseapp.com",
+    projectId: "appointment-app-id",
+    storageBucket: "appointment-app-id.firebasestorage.app",
+    messagingSenderId: "753346372273",
+    appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
+  };
 
-/* 🔐 ADMIN STATE */
-let isAdmin = sessionStorage.getItem("isAdmin") === "true";
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-/* 🌍 COUNTRY HANDLING */
-const countrySelect = document.getElementById("country");
-const phoneInput = document.getElementById("phone");
-const dateInput = document.getElementById("date");
+  /* 🔐 ADMIN STATE */
+  let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
-countrySelect.onchange = () => {
-  phoneInput.value = countrySelect.selectedOptions[0].dataset.code + " ";
-};
+  /* 🌍 ELEMENTS */
+  const countrySelect = document.getElementById("country");
+  const phoneInput = document.getElementById("phone");
+  const dateInput = document.getElementById("date");
+  const timeInput = document.getElementById("time");
+  const dashboard = document.getElementById("dashboard");
+  const appointmentsList = document.getElementById("appointments");
 
-/* 🔄 UPDATE DATE WHEN COUNTRY CHANGES */
-countrySelect.addEventListener("change", () => {
-  dateInput.min = getLocalDateForSelectedCountry();
-});
+  /* 🌍 COUNTRY HANDLING */
+  countrySelect.onchange = () => {
+    phoneInput.value = countrySelect.selectedOptions[0].dataset.code + " ";
+    dateInput.min = getLocalDateForSelectedCountry();
+  };
 
-
-/* 📅 COUNTRY-AWARE DATE */
-function getLocalDateForSelectedCountry() {
-  const tz = countrySelect.selectedOptions[0].dataset.tz;
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
-}
-
-
-/* ⏰ TIME RULES */
-const timeInput = document.getElementById("time");
-timeInput.min = OPEN_TIME;
-timeInput.max = CLOSE_TIME;
-timeInput.step = TIME_INTERVAL * 60;
-
-/* 📋 ADMIN UI */
-const dashboard = document.getElementById("dashboard");
-const appointmentsList = document.getElementById("appointments");
-
-if (isAdmin) enableAdminUI();
-
-/* 🔑 ADMIN LOGIN */
-document.getElementById("adminBtn").onclick = () => {
-  const code = prompt("Enter admin code:");
-  if (code === ADMIN_CODE) {
-    sessionStorage.setItem("isAdmin", "true");
-    isAdmin = true;
-    enableAdminUI();
-    alert("Admin access granted");
-  } else {
-    alert("Wrong admin code");
+  function getLocalDateForSelectedCountry() {
+    const tz = countrySelect.selectedOptions[0].dataset.tz;
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
   }
-};
 
-/* 📌 ENABLE ADMIN UI */
-function enableAdminUI() {
-  dashboard.style.display = "block";
-  loadAppointments();
-}
+  dateInput.min = getLocalDateForSelectedCountry();
 
-/* 📌 BOOK APPOINTMENT */
-document.getElementById("bookBtn").onclick = async () => {
-  try {
-    const name = document.getElementById("name").value.trim();
-    const phone = phoneInput.value.trim();
-    const date = dateInput.value;
-    const time = timeInput.value;
-    const timezone = countrySelect.selectedOptions[0].dataset.tz;
+  /* ⏰ TIME RULES */
+  timeInput.min = OPEN_TIME;
+  timeInput.max = CLOSE_TIME;
+  timeInput.step = TIME_INTERVAL * 60;
 
-    if (!name || !phone || !date || !time) {
-      alert("Please fill all fields");
-      return;
+  if (isAdmin) enableAdminUI();
+
+  /* 🔑 ADMIN LOGIN */
+  document.getElementById("adminBtn").onclick = () => {
+    const code = prompt("Enter admin code:");
+    if (code === ADMIN_CODE) {
+      sessionStorage.setItem("isAdmin", "true");
+      isAdmin = true;
+      enableAdminUI();
+      alert("Admin access granted");
+    } else {
+      alert("Wrong admin code");
     }
+  };
 
-    if (time < OPEN_TIME || time >= CLOSE_TIME) {
-      alert("Selected time is outside business hours");
-      return;
+  function enableAdminUI() {
+    dashboard.style.display = "block";
+    loadAppointments();
+  }
+
+  /* 📌 BOOK APPOINTMENT */
+  document.getElementById("bookBtn").onclick = async () => {
+    try {
+      const name = document.getElementById("name").value.trim();
+      const phone = phoneInput.value.trim();
+      const date = dateInput.value;
+      const time = timeInput.value;
+      const timezone = countrySelect.selectedOptions[0].dataset.tz;
+
+      if (!name || !phone || !date || !time) {
+        alert("Please fill all fields");
+        return;
+      }
+
+      if (time < OPEN_TIME || time >= CLOSE_TIME) {
+        alert("Outside business hours");
+        return;
+      }
+
+      const q = query(
+        collection(db, "appointments"),
+        where("businessId", "==", BUSINESS_ID),
+        where("date", "==", date),
+        where("time", "==", time)
+      );
+
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        alert("This time is already booked");
+        return;
+      }
+
+      const businessToday = new Intl.DateTimeFormat("en-CA", {
+        timeZone: BUSINESS_TIMEZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).format(new Date());
+
+      await addDoc(collection(db, "appointments"), {
+        businessId: BUSINESS_ID,
+        name,
+        phone,
+        date,
+        time,
+        timezone,
+        businessDate: businessToday,
+        createdAt: Date.now()
+      });
+
+      alert("Appointment booked");
+      document.getElementById("name").value = "";
+      phoneInput.value = "";
+      timeInput.value = "";
+
+    } catch (e) {
+      console.error(e);
+      alert("Booking failed. Check console.");
     }
+  };
+
+  async function loadAppointments() {
+    if (!isAdmin) return;
+
+    appointmentsList.innerHTML = "";
 
     const q = query(
       collection(db, "appointments"),
-      where("businessId", "==", BUSINESS_ID),
-      where("date", "==", date),
-      where("time", "==", time)
+      where("businessId", "==", BUSINESS_ID)
     );
 
     const snap = await getDocs(q);
-    if (!snap.empty) {
-      alert("This date and time is already booked");
-      return;
-    }
 
-    const businessToday = new Intl.DateTimeFormat("en-CA", {
+    let total = 0;
+    let todayTotal = 0;
+
+    const today = new Intl.DateTimeFormat("en-CA", {
       timeZone: BUSINESS_TIMEZONE,
       year: "numeric",
       month: "2-digit",
       day: "2-digit"
     }).format(new Date());
 
-    await addDoc(collection(db, "appointments"), {
-      businessId: BUSINESS_ID,
-      name,
-      phone,
-      date,
-      time,
-      country: countrySelect.value,
-      timezone,
-      businessDate: businessToday,
-      createdAt: Date.now()
+    snap.forEach(d => {
+      const data = d.data();
+      total++;
+      if (data.businessDate === today) todayTotal++;
+
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <div>
+          <strong>${data.name}</strong><br>
+          ${data.phone}<br>
+          ${data.date} at ${data.time}
+        </div>
+      `;
+
+      const del = document.createElement("button");
+      del.textContent = "Delete";
+      del.className = "delete";
+      del.onclick = async () => {
+        await deleteDoc(doc(db, "appointments", d.id));
+        loadAppointments();
+      };
+
+      li.appendChild(del);
+      appointmentsList.appendChild(li);
     });
 
-    alert("Appointment booked successfully");
-    document.getElementById("name").value = "";
-    phoneInput.value = "";
-    timeInput.value = "";
-
-  } catch (err) {
-    console.error(err);
-    alert("Booking failed. Check console.");
+    document.getElementById("totalCount").textContent = total;
+    document.getElementById("todayCount").textContent = todayTotal;
   }
-};
 
-/* 📊 LOAD APPOINTMENTS */
-async function loadAppointments() {
-  if (!isAdmin) return;
-
-  appointmentsList.innerHTML = "";
-
-  const q = query(
-    collection(db, "appointments"),
-    where("businessId", "==", BUSINESS_ID)
-  );
-
-  const snap = await getDocs(q);
-
-  let total = 0;
-  let todayTotal = 0;
-
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: BUSINESS_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
-
-  const appointments = [];
-
-  snap.forEach(d => {
-    appointments.push({ id: d.id, ...d.data() });
-  });
-
-  appointments.sort((a, b) => {
-    if (a.date === b.date) return a.time.localeCompare(b.time);
-    return a.date.localeCompare(b.date);
-  });
-
-  appointments.forEach(data => {
-    total++;
-    if (
-      (data.businessDate && data.businessDate === today) ||
-      data.date === today
-    ) {
-      todayTotal++;
-    }
-
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <div>
-        <strong>${data.name}</strong><br>
-        ${data.phone}<br>
-        ${data.date} at ${data.time}
-      </div>
-    `;
-
-    const del = document.createElement("button");
-    del.textContent = "Delete";
-    del.className = "delete";
-    del.onclick = async () => {
-      await deleteDoc(doc(db, "appointments", data.id));
-      loadAppointments();
-    };
-
-    li.appendChild(del);
-    appointmentsList.appendChild(li);
-  });
-
-  document.getElementById("totalCount").textContent = total;
-  document.getElementById("todayCount").textContent = todayTotal;
-}
+});
 </script>
