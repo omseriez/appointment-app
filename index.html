@@ -42,16 +42,10 @@ let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 /* 🌍 COUNTRY HANDLING */
 const countrySelect = document.getElementById("country");
 const phoneInput = document.getElementById("phone");
-const dateInput = document.getElementById("date");
 
 countrySelect.onchange = () => {
   phoneInput.value = countrySelect.selectedOptions[0].dataset.code + " ";
 };
-
-/* 🔄 UPDATE DATE WHEN COUNTRY CHANGES */
-countrySelect.addEventListener("change", () => {
-  dateInput.min = getLocalDateForSelectedCountry();
-});
 
 /* 📅 COUNTRY-AWARE DATE */
 function getLocalDateForSelectedCountry() {
