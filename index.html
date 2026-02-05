@@ -13,19 +13,15 @@ import {
 
 document.addEventListener("DOMContentLoaded", () => {
 
-  /* 🔐 CONFIG */
   const BUSINESS_ID = "voixit-office";
   const ADMIN_CODE = "Whywhy455";
 
-  /* 🕘 BUSINESS HOURS */
   const OPEN_TIME = "09:00";
   const CLOSE_TIME = "17:00";
   const TIME_INTERVAL = 30;
 
-  /* 🕒 BUSINESS TIMEZONE */
   const BUSINESS_TIMEZONE = "Africa/Lagos";
 
-  /* 🔥 FIREBASE */
   const firebaseConfig = {
     apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
     authDomain: "appointment-app-id.firebaseapp.com",
@@ -38,10 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  /* 🔐 ADMIN STATE */
   let isAdmin = sessionStorage.getItem("isAdmin") === "true";
 
-  /* 🌍 ELEMENTS */
   const countrySelect = document.getElementById("country");
   const phoneInput = document.getElementById("phone");
   const dateInput = document.getElementById("date");
@@ -49,13 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const dashboard = document.getElementById("dashboard");
   const appointmentsList = document.getElementById("appointments");
 
-  /* 🌍 COUNTRY HANDLING */
-  countrySelect.onchange = () => {
-    phoneInput.value = countrySelect.selectedOptions[0].dataset.code + " ";
-    dateInput.min = getLocalDateForSelectedCountry();
-  };
-
-  function getLocalDateForSelectedCountry() {
+  function getLocalDate() {
     const tz = countrySelect.selectedOptions[0].dataset.tz;
     return new Intl.DateTimeFormat("en-CA", {
       timeZone: tz,
@@ -65,144 +53,84 @@ document.addEventListener("DOMContentLoaded", () => {
     }).format(new Date());
   }
 
-  dateInput.min = getLocalDateForSelectedCountry();
+  dateInput.min = getLocalDate();
 
-  /* ⏰ TIME RULES */
+  countrySelect.addEventListener("change", () => {
+    phoneInput.value = countrySelect.selectedOptions[0].dataset.code + " ";
+    dateInput.min = getLocalDate();
+  });
+
   timeInput.min = OPEN_TIME;
   timeInput.max = CLOSE_TIME;
   timeInput.step = TIME_INTERVAL * 60;
 
-  if (isAdmin) enableAdminUI();
-
-  /* 🔑 ADMIN LOGIN */
   document.getElementById("adminBtn").onclick = () => {
-    const code = prompt("Enter admin code:");
+    const code = prompt("Enter admin code");
     if (code === ADMIN_CODE) {
       sessionStorage.setItem("isAdmin", "true");
       isAdmin = true;
-      enableAdminUI();
-      alert("Admin access granted");
+      dashboard.style.display = "block";
+      loadAppointments();
     } else {
-      alert("Wrong admin code");
+      alert("Wrong code");
     }
   };
 
-  function enableAdminUI() {
-    dashboard.style.display = "block";
-    loadAppointments();
-  }
-
-  /* 📌 BOOK APPOINTMENT */
   document.getElementById("bookBtn").onclick = async () => {
-    try {
-      const name = document.getElementById("name").value.trim();
-      const phone = phoneInput.value.trim();
-      const date = dateInput.value;
-      const time = timeInput.value;
-      const timezone = countrySelect.selectedOptions[0].dataset.tz;
+    const name = document.getElementById("name").value.trim();
+    const phone = phoneInput.value.trim();
+    const date = dateInput.value;
+    const time = timeInput.value;
 
-      if (!name || !phone || !date || !time) {
-        alert("Please fill all fields");
-        return;
-      }
+    if (!name || !phone || !date || !time) {
+      alert("Fill all fields");
+      return;
+    }
 
-      if (time < OPEN_TIME || time >= CLOSE_TIME) {
-        alert("Outside business hours");
-        return;
-      }
+    const q = query(
+      collection(db, "appointments"),
+      where("businessId", "==", BUSINESS_ID),
+      where("date", "==", date),
+      where("time", "==", time)
+    );
 
-      const q = query(
-        collection(db, "appointments"),
-        where("businessId", "==", BUSINESS_ID),
-        where("date", "==", date),
-        where("time", "==", time)
-      );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      alert("Already booked");
+      return;
+    }
 
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        alert("This time is already booked");
-        return;
-      }
-
-      const businessToday = new Intl.DateTimeFormat("en-CA", {
+    await addDoc(collection(db, "appointments"), {
+      businessId: BUSINESS_ID,
+      name,
+      phone,
+      date,
+      time,
+      businessDate: new Intl.DateTimeFormat("en-CA", {
         timeZone: BUSINESS_TIMEZONE,
         year: "numeric",
         month: "2-digit",
         day: "2-digit"
-      }).format(new Date());
+      }).format(new Date()),
+      createdAt: Date.now()
+    });
 
-      await addDoc(collection(db, "appointments"), {
-        businessId: BUSINESS_ID,
-        name,
-        phone,
-        date,
-        time,
-        timezone,
-        businessDate: businessToday,
-        createdAt: Date.now()
-      });
-
-      alert("Appointment booked");
-      document.getElementById("name").value = "";
-      phoneInput.value = "";
-      timeInput.value = "";
-
-    } catch (e) {
-      console.error(e);
-      alert("Booking failed. Check console.");
-    }
+    alert("Booked successfully");
   };
 
   async function loadAppointments() {
-    if (!isAdmin) return;
-
     appointmentsList.innerHTML = "";
 
-    const q = query(
-      collection(db, "appointments"),
-      where("businessId", "==", BUSINESS_ID)
+    const snap = await getDocs(
+      query(collection(db, "appointments"), where("businessId", "==", BUSINESS_ID))
     );
-
-    const snap = await getDocs(q);
-
-    let total = 0;
-    let todayTotal = 0;
-
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: BUSINESS_TIMEZONE,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit"
-    }).format(new Date());
 
     snap.forEach(d => {
       const data = d.data();
-      total++;
-      if (data.businessDate === today) todayTotal++;
-
       const li = document.createElement("li");
-      li.innerHTML = `
-        <div>
-          <strong>${data.name}</strong><br>
-          ${data.phone}<br>
-          ${data.date} at ${data.time}
-        </div>
-      `;
-
-      const del = document.createElement("button");
-      del.textContent = "Delete";
-      del.className = "delete";
-      del.onclick = async () => {
-        await deleteDoc(doc(db, "appointments", d.id));
-        loadAppointments();
-      };
-
-      li.appendChild(del);
+      li.textContent = `${data.name} – ${data.date} ${data.time}`;
       appointmentsList.appendChild(li);
     });
-
-    document.getElementById("totalCount").textContent = total;
-    document.getElementById("todayCount").textContent = todayTotal;
   }
 
 });
