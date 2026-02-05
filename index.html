@@ -1,137 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Book an Appointment</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f2f4f7;
+    padding: 20px;
+    max-width: 500px;
+    margin: auto;
+  }
+  h1, h2 { text-align: center; }
+  label { display: block; margin-top: 15px; font-weight: bold; }
+  input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 5px;
+    font-size: 16px;
+  }
+  button {
+    background: #007bff;
+    color: white;
+    border: none;
+    margin-top: 20px;
+    cursor: pointer;
+  }
+
+  /* TIME SLOTS */
+  #timeSlots {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .time-slot {
+    padding: 10px;
+    background: #e9ecef;
+    border-radius: 6px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  .time-slot.active {
+    background: #007bff;
+    color: white;
+  }
+  .time-slot.disabled {
+    background: #ccc;
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  ul { list-style: none; padding: 0; }
+  li {
+    background: white;
+    padding: 10px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .delete {
+    background: red;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>Book an Appointment</h1>
+
+<label>Full Name</label>
+<input id="name" placeholder="Enter full name">
+
+<label>Country</label>
+<select id="country">
+  <option value="NG" data-code="+234" data-tz="Africa/Lagos">🇳🇬 Nigeria (+234)</option>
+  <option value="US" data-code="+1" data-tz="America/New_York">🇺🇸 USA (+1)</option>
+  <option value="GB" data-code="+44" data-tz="Europe/London">🇬🇧 UK (+44)</option>
+  <option value="CA" data-code="+1" data-tz="America/Toronto">🇨🇦 Canada (+1)</option>
+</select>
+
+<label>Phone Number</label>
+<input id="phone" placeholder="Enter phone number">
+
+<label>Appointment Date</label>
+<input id="date" type="date">
+
+<label>Available Time Slots</label>
+<div id="timeSlots"></div>
+<input id="time" type="hidden">
+
+<button id="bookBtn">Book Appointment</button>
+<button id="adminBtn">Admin Login</button>
+
+<!-- 🔐 ADMIN DASHBOARD -->
+<div id="dashboard" style="display:none;">
+  <h2>Admin Dashboard</h2>
+
+  <div style="display:flex; gap:10px; margin-bottom:15px;">
+    <div style="flex:1; background:white; padding:10px; text-align:center;">
+      <h3 id="totalCount">0</h3>
+      <small>Total Appointments</small>
+    </div>
+
+    <div style="flex:1; background:white; padding:10px; text-align:center;">
+      <h3 id="todayCount">0</h3>
+      <small>Today</small>
+    </div>
+  </div>
+
+  <h2>Appointment Queue</h2>
+  <ul id="appointments"></ul>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  where,
-  deleteDoc,
-  doc
+  getFirestore, collection, addDoc,
+  getDocs, query, where,
+  deleteDoc, doc
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-document.addEventListener("DOMContentLoaded", () => {
+/* CONFIG */
+const BUSINESS_ID = "voixit-office";
+const ADMIN_CODE = "Whywhy455";
+const OPEN_HOUR = 9;
+const CLOSE_HOUR = 17;
+const INTERVAL = 30;
+const BUSINESS_TIMEZONE = "Africa/Lagos";
 
-  const BUSINESS_ID = "voixit-office";
-  const ADMIN_CODE = "Whywhy455";
+/* FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
+  authDomain: "appointment-app-id.firebaseapp.com",
+  projectId: "appointment-app-id",
+  storageBucket: "appointment-app-id.firebasestorage.app",
+  messagingSenderId: "753346372273",
+  appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  const OPEN_TIME = "09:00";
-  const CLOSE_TIME = "17:00";
-  const TIME_INTERVAL = 30;
+/* COUNTRY HANDLING */
+const countrySelect = document.getElementById("country");
+const phoneInput = document.getElementById("phone");
 
-  const BUSINESS_TIMEZONE = "Africa/Lagos";
+countrySelect.onchange = () => {
+  phoneInput.value = countrySelect.selectedOptions[0].dataset.code + " ";
+  setMinDate();
+};
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDVzSU2qASOg8G3XJopcS14QZVKP1dO0EU",
-    authDomain: "appointment-app-id.firebaseapp.com",
-    projectId: "appointment-app-id",
-    storageBucket: "appointment-app-id.firebasestorage.app",
-    messagingSenderId: "753346372273",
-    appId: "1:753346372273:web:7ecc59ff17f1fc56963890"
-  };
+function getCountryNow() {
+  const tz = countrySelect.selectedOptions[0].dataset.tz;
+  return new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
+}
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+function setMinDate() {
+  const now = getCountryNow();
+  const today =
+    now.getFullYear() + "-" +
+    String(now.getMonth()+1).padStart(2,"0") + "-" +
+    String(now.getDate()).padStart(2,"0");
+  document.getElementById("date").min = today;
+}
+setMinDate();
 
-  let isAdmin = sessionStorage.getItem("isAdmin") === "true";
+/* TIME SLOTS */
+const timeSlotsDiv = document.getElementById("timeSlots");
+let selectedTime = null;
 
-  const countrySelect = document.getElementById("country");
-  const phoneInput = document.getElementById("phone");
-  const dateInput = document.getElementById("date");
-  const timeInput = document.getElementById("time");
-  const dashboard = document.getElementById("dashboard");
-  const appointmentsList = document.getElementById("appointments");
+async function generateTimeSlots() {
+  timeSlotsDiv.innerHTML = "";
+  selectedTime = null;
+  document.getElementById("time").value = "";
 
-  function getLocalDate() {
-    const tz = countrySelect.selectedOptions[0].dataset.tz;
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit"
-    }).format(new Date());
+  const date = document.getElementById("date").value;
+  if (!date) return;
+
+  const q = query(
+    collection(db, "appointments"),
+    where("businessId","==",BUSINESS_ID),
+    where("date","==",date)
+  );
+  const snap = await getDocs(q);
+  const booked = snap.docs.map(d => d.data().time);
+
+  const now = getCountryNow();
+
+  for (let h = OPEN_HOUR; h < CLOSE_HOUR; h++) {
+    for (let m = 0; m < 60; m += INTERVAL) {
+      const time = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+      const btn = document.createElement("div");
+      btn.textContent = time;
+      btn.className = "time-slot";
+
+      const slotDate = new Date(`${date}T${time}`);
+      if (slotDate < now || booked.includes(time)) {
+        btn.classList.add("disabled");
+      } else {
+        btn.onclick = () => {
+          document.querySelectorAll(".time-slot").forEach(b=>b.classList.remove("active"));
+          btn.classList.add("active");
+          selectedTime = time;
+          document.getElementById("time").value = time;
+        };
+      }
+      timeSlotsDiv.appendChild(btn);
+    }
+  }
+}
+
+document.getElementById("date").addEventListener("change", generateTimeSlots);
+
+/* BOOK */
+document.getElementById("bookBtn").onclick = async () => {
+  const name = nameInput.value.trim();
+  const phone = phoneInput.value.trim();
+  const date = dateInput.value;
+  const time = document.getElementById("time").value;
+
+  if (!name || !phone || !date || !time) {
+    alert("Please complete all fields");
+    return;
   }
 
-  dateInput.min = getLocalDate();
-
-  countrySelect.addEventListener("change", () => {
-    phoneInput.value = countrySelect.selectedOptions[0].dataset.code + " ";
-    dateInput.min = getLocalDate();
+  await addDoc(collection(db,"appointments"),{
+    businessId:BUSINESS_ID,
+    name, phone, date, time,
+    country: countrySelect.value,
+    createdAt: Date.now()
   });
 
-  timeInput.min = OPEN_TIME;
-  timeInput.max = CLOSE_TIME;
-  timeInput.step = TIME_INTERVAL * 60;
+  alert("Appointment booked successfully");
+  generateTimeSlots();
+};
 
-  document.getElementById("adminBtn").onclick = () => {
-    const code = prompt("Enter admin code");
-    if (code === ADMIN_CODE) {
-      sessionStorage.setItem("isAdmin", "true");
-      isAdmin = true;
-      dashboard.style.display = "block";
-      loadAppointments();
-    } else {
-      alert("Wrong code");
-    }
-  };
+/* ADMIN */
+let isAdmin = sessionStorage.getItem("isAdmin")==="true";
+const dashboard = document.getElementById("dashboard");
 
-  document.getElementById("bookBtn").onclick = async () => {
-    const name = document.getElementById("name").value.trim();
-    const phone = phoneInput.value.trim();
-    const date = dateInput.value;
-    const time = timeInput.value;
-
-    if (!name || !phone || !date || !time) {
-      alert("Fill all fields");
-      return;
-    }
-
-    const q = query(
-      collection(db, "appointments"),
-      where("businessId", "==", BUSINESS_ID),
-      where("date", "==", date),
-      where("time", "==", time)
-    );
-
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      alert("Already booked");
-      return;
-    }
-
-    await addDoc(collection(db, "appointments"), {
-      businessId: BUSINESS_ID,
-      name,
-      phone,
-      date,
-      time,
-      businessDate: new Intl.DateTimeFormat("en-CA", {
-        timeZone: BUSINESS_TIMEZONE,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit"
-      }).format(new Date()),
-      createdAt: Date.now()
-    });
-
-    alert("Booked successfully");
-  };
-
-  async function loadAppointments() {
-    appointmentsList.innerHTML = "";
-
-    const snap = await getDocs(
-      query(collection(db, "appointments"), where("businessId", "==", BUSINESS_ID))
-    );
-
-    snap.forEach(d => {
-      const data = d.data();
-      const li = document.createElement("li");
-      li.textContent = `${data.name} – ${data.date} ${data.time}`;
-      appointmentsList.appendChild(li);
-    });
+document.getElementById("adminBtn").onclick = ()=>{
+  const code = prompt("Enter admin code");
+  if(code===ADMIN_CODE){
+    sessionStorage.setItem("isAdmin","true");
+    dashboard.style.display="block";
+    loadAppointments();
   }
+};
 
-});
+async function loadAppointments(){
+  const q = query(collection(db,"appointments"),where("businessId","==",BUSINESS_ID));
+  const snap = await getDocs(q);
+
+  let total=0, todayTotal=0;
+  const today = new Intl.DateTimeFormat("en-CA",{timeZone:BUSINESS_TIMEZONE}).format(new Date());
+
+  appointments.innerHTML="";
+  snap.forEach(d=>{
+    total++;
+    const data=d.data();
+    if(data.date===today) todayTotal++;
+
+    const li=document.createElement("li");
+    li.innerHTML=`<div><strong>${data.name}</strong><br>${data.phone}<br>${data.date} ${data.time}</div>`;
+    const del=document.createElement("button");
+    del.textContent="Delete";
+    del.className="delete";
+    del.onclick=async()=>{await deleteDoc(doc(db,"appointments",d.id));loadAppointments();};
+    li.appendChild(del);
+    appointments.appendChild(li);
+  });
+
+  totalCount.textContent=total;
+  todayCount.textContent=todayTotal;
+}
 </script>
+
+</body>
+</html>
